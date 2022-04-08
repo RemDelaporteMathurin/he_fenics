@@ -1,3 +1,8 @@
+"""This scripts runs against FESTIM v0.5.x
+
+TODO: completely remove FESTIM calls and use pure fenics
+"""
+
 import fenics as f
 import sympy as sp
 import numpy as np
