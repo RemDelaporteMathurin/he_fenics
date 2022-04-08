@@ -1,4 +1,4 @@
-from fenics import *
+import fenics as f
 import sympy as sp
 import numpy as np
 import FESTIM
@@ -19,38 +19,38 @@ def main(
     files = []
     for i in range(0, nb_clusters):
         files.append(
-            XDMFFile(folder + "/c_" + str(i + 1) + ".xdmf"))
+            f.XDMFFile(folder + "/c_" + str(i + 1) + ".xdmf"))
 
-    files.append(XDMFFile(folder + "/cb.xdmf"))
-    files.append(XDMFFile(folder + "/i.xdmf"))
-    files.append(XDMFFile(folder + "/retention.xdmf"))
-    for f in files:
-        f.parameters["flush_output"] = True
-        f.parameters["rewrite_function_mesh"] = False
+    files.append(f.XDMFFile(folder + "/cb.xdmf"))
+    files.append(f.XDMFFile(folder + "/i.xdmf"))
+    files.append(f.XDMFFile(folder + "/retention.xdmf"))
+    for file_ in files:
+        file_.parameters["flush_output"] = True
+        file_.parameters["rewrite_function_mesh"] = False
 
     # Defining mesh
 
     size = mesh_parameters["size"]
     mesh = FESTIM.meshing.mesh_and_refine(mesh_parameters)
-    n = FacetNormal(mesh)
+    n = f.FacetNormal(mesh)
     vm, sm = FESTIM.meshing.subdomains(
         mesh,
         {
             "mesh_parameters": mesh_parameters,
             "materials": [{"borders": [0, size], "id": 1}]}
         )
-    dx = Measure('dx', domain=mesh)
+    dx = f.Measure('dx', domain=mesh)
 
-    dt = Constant(dt)
+    dt = f.Constant(dt)
     # Defining functions
-    V = VectorFunctionSpace(mesh, 'P', 1, nb_clusters+2)
-    V_DG1 = FunctionSpace(mesh, "DG", 1)
-    V_DG0 = FunctionSpace(mesh, "DG", 0)
+    V = f.VectorFunctionSpace(mesh, 'P', 1, nb_clusters+2)
+    V_DG1 = f.FunctionSpace(mesh, "DG", 1)
+    V_DG0 = f.FunctionSpace(mesh, "DG", 0)
     dof_coord = V.tabulate_dof_coordinates()
-    c = Function(V)
-    v = TestFunction(V)
-    sols = list(split(c))
-    test_func = list(split(v))
+    c = f.Function(V)
+    v = f.TestFunction(V)
+    sols = list(f.split(c))
+    test_func = list(f.split(v))
 
     ini = []
     # # Uncomment the following to add initial conditions
@@ -58,26 +58,26 @@ def main(
     ini = [{"value": nb_clusters+1, "component": nb_clusters+1}]
     c_n = \
         FESTIM.initialising.initialise_solutions({"initial_conditions": ini}, V)
-    prev_sols = split(c_n)
+    prev_sols = f.split(c_n)
     bcs = []
     for i in range(0, nb_clusters+1):
-        bcs.append(DirichletBC(V.sub(i), Constant(0), sm, 1))
-        bcs.append(DirichletBC(V.sub(i), Constant(0), sm, 2))
+        bcs.append(f.DirichletBC(V.sub(i), f.Constant(0), sm, 1))
+        bcs.append(f.DirichletBC(V.sub(i), f.Constant(0), sm, 2))
 
     # Defining form
     if isinstance(temperature, (int, float)):
-        T = Constant(temperature)
+        T = f.Constant(temperature)
     else:
-        T = Expression(
+        T = f.Expression(
             sp.printing.ccode(temperature), t=0, degree=2)
     immobile_cluster_threshold = 7
     diff = [0 for i in range(nb_clusters + 1)]
-    diff[0] = 2.95e-8*exp(-0.13/FESTIM.k_B/T)
-    diff[1] = 3.24e-8*exp(-0.2/FESTIM.k_B/T)
-    diff[2] = 2.26e-8*exp(-0.25/FESTIM.k_B/T)
-    diff[3] = 1.68e-8*exp(-0.2/FESTIM.k_B/T)
-    diff[4] = 0.520e-8*exp(-0.12/FESTIM.k_B/T)
-    diff[5] = 0.120e-8*exp(-0.3/FESTIM.k_B/T)
+    diff[0] = 2.95e-8*f.exp(-0.13/FESTIM.k_B/T)
+    diff[1] = 3.24e-8*f.exp(-0.2/FESTIM.k_B/T)
+    diff[2] = 2.26e-8*f.exp(-0.25/FESTIM.k_B/T)
+    diff[3] = 1.68e-8*f.exp(-0.2/FESTIM.k_B/T)
+    diff[4] = 0.520e-8*f.exp(-0.12/FESTIM.k_B/T)
+    diff[5] = 0.120e-8*f.exp(-0.3/FESTIM.k_B/T)
 
     R1 = 3e-10
     R = []
@@ -116,12 +116,12 @@ def main(
         None]
     reactions = []
     for i in range(0, nb_clusters):
-        k_plus = 4*pi*(R1 + radius_pure_helium(i+1))*(diff[0] + diff[i])
+        k_plus = 4*f.pi*(R1 + radius_pure_helium(i+1))*(diff[0] + diff[i])
 
         if dissociation_energies[i+1] is not None:
             k_minus = \
                 atomic_density*k_plus * \
-                exp(-dissociation_energies[i+1]/FESTIM.k_B/T)
+                f.exp(-dissociation_energies[i+1]/FESTIM.k_B/T)
         else:
             k_minus = 0
         reaction = {
@@ -144,8 +144,8 @@ def main(
         R[sum(species)+1] += reaction["k+"]*prod
         D[sum(species)+1] += -reaction["k-"] * sols[sum(species)+1]
     F = 0
-    if not isinstance(source, Function):
-        source_expr = Expression(sp.printing.ccode(source), degree=1, t=0)
+    if not isinstance(source, f.Function):
+        source_expr = f.Expression(sp.printing.ccode(source), degree=1, t=0)
     else:
         source_expr = source
     F += -source_expr*test_func[0]*dx
@@ -164,13 +164,13 @@ def main(
             (3/(4*pi) * (a_0**3)/2)**(1/3)
 
     rb = radius(av_i_n)
-    k_b_av = 4*pi*diff[0]*(R1 + rb)
+    k_b_av = 4*f.pi*diff[0]*(R1 + rb)
     R[0] += - k_b_av*sols[0]*cb
 
     for i in range(0, nb_clusters + 1):
         # print(R[i])
         F += (sols[i] - prev_sols[i])/dt*test_func[i]*dx + \
-            diff[i]*dot(grad(sols[i]), grad(test_func[i]))*dx
+            diff[i]*f.dot(f.grad(sols[i]), f.grad(test_func[i]))*dx
         F += (- R[i] - D[i])*test_func[i]*dx
 
     # doesn't work: d(cb*ib)/dt
@@ -187,12 +187,12 @@ def main(
     F += -((nb_clusters + 1)*R[-2])*test_func[-1]*dx
     F += -(k_b_av*sols[0]*cb)*test_func[-1]*dx
 
-    du = TrialFunction(c.function_space())
-    J = derivative(F, c, du)  # Define the Jacobian
+    du = f.TrialFunction(c.function_space())
+    J = f.derivative(F, c, du)  # Define the Jacobian
 
     # Solving
     t = 0
-    set_log_level(30)
+    f.set_log_level(30)
 
     derived_quantities_global = [
         [
@@ -204,8 +204,8 @@ def main(
         source_expr.t = t
         T.t = t
         # solve
-        problem = NonlinearVariationalProblem(F, c, bcs, J)
-        solver = NonlinearVariationalSolver(problem)
+        problem = f.NonlinearVariationalProblem(F, c, bcs, J)
+        solver = f.NonlinearVariationalSolver(problem)
         solver.parameters["newton_solver"]["absolute_tolerance"] = 1e10
         solver.parameters["newton_solver"]["relative_tolerance"] = 1e-10
         solver.parameters["newton_solver"]["maximum_iterations"] = 30
@@ -227,7 +227,7 @@ def main(
             [(i+1)*res[i] for i in
                 range(immobile_cluster_threshold-1, len(res)-2)]
             )
-        retention = project(
+        retention = f.project(
             res[-1]*res[-2] + immobile_clusters)
         retention.rename('retention', 'retention')
         files[-1].write(retention, t)
@@ -235,19 +235,19 @@ def main(
         flux_left = 0
         for i in range(0, nb_clusters):
             if i < immobile_cluster_threshold:
-                flux_left += assemble(diff[i]*dot(grad(res[i]), n)*ds)
+                flux_left += f.assemble(diff[i]*f.dot(f.grad(res[i]), n)*f.ds)
         ib_max = \
             FESTIM.post_processing.calculate_maximum_volume(res[-1], vm, 1)
         x_max_ib = find_maximum_loc(res[-1], ib_max, dof_coord)
         immobile_clusters = \
             [res[i] for i in range(immobile_cluster_threshold-1, len(res)-1)]
-        total_bubbles = assemble((sum(immobile_clusters))*dx)
+        total_bubbles = f.assemble((sum(immobile_clusters))*dx)
         if total_bubbles > 0:
-            mean_ib = assemble(retention*dx)/total_bubbles
+            mean_ib = f.assemble(retention*dx)/total_bubbles
         else:
             mean_ib = nb_clusters + 1
         derived_quantities_global.append(
-            [t, assemble(retention*dx), flux_left, ib_max, x_max_ib, mean_ib,
+            [t, f.assemble(retention*dx), flux_left, ib_max, x_max_ib, mean_ib,
              total_bubbles])
 
         # update
