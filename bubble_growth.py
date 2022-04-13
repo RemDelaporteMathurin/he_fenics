@@ -194,6 +194,7 @@ def main(
         ) * dx
         # soret
         if isinstance(T, Function) and soret:
+            print("Adding soret effect")
             Q = free_enthalpy[i] * T + entropy[i]
             F += (
                 dot(
