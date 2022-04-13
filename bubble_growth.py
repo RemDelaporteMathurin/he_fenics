@@ -1,10 +1,10 @@
-from types import FunctionType
 from fenics import *
 import sympy as sp
 import numpy as np
-import FESTIM
-import csv
-from os import path
+from src import meshing, initialising, post_processing, solving
+
+
+k_B = 8.617e-5  # eV/K
 
 
 def find_maximum_loc(u, maximum, dof_coord):
@@ -31,9 +31,9 @@ def main(
     # Defining mesh
 
     size = mesh_parameters["size"]
-    mesh = FESTIM.meshing.mesh_and_refine(mesh_parameters)
+    mesh = meshing.mesh_and_refine(mesh_parameters)
     n = FacetNormal(mesh)
-    vm, sm = FESTIM.meshing.subdomains(
+    vm, sm = meshing.subdomains(
         mesh,
         {
             "mesh_parameters": mesh_parameters,
@@ -56,9 +56,9 @@ def main(
 
     ini = []
     # # Uncomment the following to add initial conditions
-    # ini = [{"value": 1e15*1e6*(FESTIM.x < 1)}]
+    # ini = [{"value": 1e15*1e6*(x < 1)}]
     ini = [{"value": nb_clusters + 1, "component": nb_clusters + 1}]
-    c_n = FESTIM.initialising.initialise_solutions({"initial_conditions": ini}, V)
+    c_n = initialising.initialise_solutions({"initial_conditions": ini}, V)
     prev_sols = split(c_n)
     bcs = []
     for i in range(0, nb_clusters + 1):
@@ -72,12 +72,12 @@ def main(
         T = Expression(sp.printing.ccode(temperature), t=0, degree=2)
     immobile_cluster_threshold = 7
     diff = [0 for i in range(nb_clusters + 1)]
-    diff[0] = 2.9e-8 * exp(-0.13 / FESTIM.k_B / T)
-    diff[1] = 3.2e-8 * exp(-0.2 / FESTIM.k_B / T)
-    diff[2] = 2.3e-8 * exp(-0.25 / FESTIM.k_B / T)
-    diff[3] = 1.7e-8 * exp(-0.2 / FESTIM.k_B / T)
-    diff[4] = 5.0e-9 * exp(-0.12 / FESTIM.k_B / T)
-    diff[5] = 1.0e-9 * exp(-0.3 / FESTIM.k_B / T)
+    diff[0] = 2.9e-8 * exp(-0.13 / k_B / T)
+    diff[1] = 3.2e-8 * exp(-0.2 / k_B / T)
+    diff[2] = 2.3e-8 * exp(-0.25 / k_B / T)
+    diff[3] = 1.7e-8 * exp(-0.2 / k_B / T)
+    diff[4] = 5.0e-9 * exp(-0.12 / k_B / T)
+    diff[5] = 1.0e-9 * exp(-0.3 / k_B / T)
 
     R1 = 3e-10
     R = []
@@ -122,9 +122,7 @@ def main(
 
         if dissociation_energies[i + 1] is not None:
             k_minus = (
-                atomic_density
-                * k_plus
-                * exp(-dissociation_energies[i + 1] / FESTIM.k_B / T)
+                atomic_density * k_plus * exp(-dissociation_energies[i + 1] / k_B / T)
             )
         else:
             k_minus = 0
@@ -251,7 +249,7 @@ def main(
         for i in range(0, nb_clusters):
             if i < immobile_cluster_threshold:
                 flux_left += assemble(diff[i] * dot(grad(res[i]), n) * ds)
-        ib_max = FESTIM.post_processing.calculate_maximum_volume(res[-1], vm, 1)
+        ib_max = post_processing.calculate_maximum_volume(res[-1], vm, 1)
         x_max_ib = find_maximum_loc(res[-1], ib_max, dof_coord)
         immobile_clusters = [
             res[i] for i in range(immobile_cluster_threshold - 1, len(res) - 1)
@@ -274,27 +272,28 @@ def main(
         )
 
         # update
-        FESTIM.solving.adaptive_stepsize(nb_it, converged, dt, 1e-8, 1.05, t)
+        solving.adaptive_stepsize(nb_it, converged, dt, 1e-8, 1.05, t)
         c_n.assign(c)
 
         if t + float(dt) > t_final:
             dt.assign(t_final - t)
 
-    FESTIM.export.write_to_csv(
+    post_processing.write_to_csv(
         {"file": "r-derived_quantities.csv"}, derived_quantities_global
     )
     # {"file": "r-derived_quantities.csv", "folder": folder},
     # derived_quantities_global)
 
     for i in range(len(res) - 2):
-        FESTIM.export.export_txt(folder + "r-{}".format(i + 1), res[i], W)
-        # FESTIM.export.export_txt(folder + "/r-{}".format(i+1), res[i], W)
-    FESTIM.export.export_txt("r-cb", res[-2], W)
-    FESTIM.export.export_txt("r-ib", res[-1], W)
-    FESTIM.export.export_txt("radius", radius(res[-1]), W)  # Rayon bulle <rb> papier
+        post_processing.export_txt(folder + "r-{}".format(i + 1), res[i], W)
+        # post_processing.export_txt(folder + "/r-{}".format(i+1), res[i], W)
+    post_processing.export_txt("r-cb", res[-2], W)
+    post_processing.export_txt("r-ib", res[-1], W)
+    post_processing.export_txt("radius", radius(res[-1]), W)  # Rayon bulle <rb> papier
 
 
 if __name__ == "__main__":
+    x = sp.Symbol("x[0]")
     size = 100e-6
 
     mesh_parameters = {
@@ -308,9 +307,7 @@ if __name__ == "__main__":
     center = 1.5e-9
     width = 1e-9
     distribution = (
-        1
-        / (width * (2 * 3.14) ** 0.5)
-        * sp.exp(-0.5 * ((FESTIM.x - center) / width) ** 2)
+        1 / (width * (2 * 3.14) ** 0.5) * sp.exp(-0.5 * ((x - center) / width) ** 2)
     )
     flux = 1e22  # flux in He m-2 s-1
     source = distribution * flux / 0.93
