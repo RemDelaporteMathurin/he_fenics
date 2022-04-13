@@ -5,6 +5,7 @@ from src import meshing, initialising, post_processing, solving
 
 
 k_B = 8.617e-5  # eV/K
+R_g = 8.314  # J/mol/K
 
 
 def find_maximum_loc(u, maximum, dof_coord):
@@ -14,7 +15,14 @@ def find_maximum_loc(u, maximum, dof_coord):
 
 
 def main(
-    mesh_parameters, temperature, source, dt, t_final, nb_clusters=6, folder="temp"
+    mesh_parameters,
+    temperature,
+    source,
+    dt,
+    t_final,
+    nb_clusters=6,
+    folder="temp",
+    soret=False,
 ):
     # Files
     files = []
@@ -23,6 +31,7 @@ def main(
 
     files.append(XDMFFile(folder + "/cb.xdmf"))
     files.append(XDMFFile(folder + "/i.xdmf"))
+    files.append(XDMFFile(folder + "/T.xdmf"))
     files.append(XDMFFile(folder + "/retention.xdmf"))
     for f in files:
         f.parameters["flush_output"] = True
@@ -69,7 +78,11 @@ def main(
     if isinstance(temperature, (int, float)):
         T = Constant(temperature)
     else:
-        T = Expression(sp.printing.ccode(temperature), t=0, degree=2)
+        ccode = sp.printing.ccode(temperature)
+        T = Expression(ccode, t=0, degree=2)
+        if "t" not in ccode:
+            T = interpolate(T, W)
+
     immobile_cluster_threshold = 7
     diff = [0 for i in range(nb_clusters + 1)]
     diff[0] = 2.9e-8 * exp(-0.13 / k_B / T)
@@ -78,6 +91,9 @@ def main(
     diff[3] = 1.7e-8 * exp(-0.2 / k_B / T)
     diff[4] = 5.0e-9 * exp(-0.12 / k_B / T)
     diff[5] = 1.0e-9 * exp(-0.3 / k_B / T)
+
+    free_enthalpy = [1 for _ in range(nb_clusters + 1)]
+    entropy = [1 for _ in range(nb_clusters + 1)]
 
     R1 = 3e-10
     R = []
@@ -176,6 +192,16 @@ def main(
         F += (sols[i] - prev_sols[i]) / dt * test_func[i] * dx + diff[i] * dot(
             grad(sols[i]), grad(test_func[i])
         ) * dx
+        # soret
+        if isinstance(T, Function) and soret:
+            Q = free_enthalpy[i] * T + entropy[i]
+            F += (
+                dot(
+                    diff[i] * Q * sols[i] / (R_g * T**2) * grad(T),
+                    grad(test_func[i]),
+                )
+                * dx
+            )
         F += (-R[i] - D[i]) * test_func[i] * dx
 
     # doesn't work: d(cb*ib)/dt
@@ -244,7 +270,7 @@ def main(
         retention = project(res[-1] * res[-2] + immobile_clusters)
         retention.rename("retention", "retention")
         files[-1].write(retention, t)
-
+        # files[-2].write(T, t)
         flux_left = 0
         for i in range(0, nb_clusters):
             if i < immobile_cluster_threshold:
@@ -294,6 +320,7 @@ def main(
 
 if __name__ == "__main__":
     x = sp.Symbol("x[0]")
+    t = sp.Symbol("t")
     size = 100e-6
 
     mesh_parameters = {
@@ -311,4 +338,11 @@ if __name__ == "__main__":
     )
     flux = 1e22  # flux in He m-2 s-1
     source = distribution * flux / 0.93
-    main(mesh_parameters, dt=0.000001, t_final=50, temperature=1000, source=source)
+    main(
+        mesh_parameters,
+        dt=0.000001,
+        t_final=1e-4,
+        temperature=1000 + 1e6 * x,
+        source=source,
+        soret=True,
+    )
