@@ -234,7 +234,7 @@ def main(
             else:
                 name = str(i + 1)
             res[i].rename(name, name)
-            # files[i].write(res[i], t)
+            files[i].write(res[i], t)
         immobile_clusters = sum(
             [
                 (i + 1) * res[i]
@@ -243,7 +243,7 @@ def main(
         )
         retention = project(res[-1] * res[-2] + immobile_clusters)
         retention.rename("retention", "retention")
-        # files[-1].write(retention, t)
+        files[-1].write(retention, t)
 
         flux_left = 0
         for i in range(0, nb_clusters):
