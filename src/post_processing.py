@@ -1,5 +1,5 @@
 import numpy as np
-from fenics import SubsetIterator
+from fenics import SubsetIterator, Function, interpolate, Expression, project
 import os
 import csv
 
@@ -55,3 +55,55 @@ def write_to_csv(derived_quantities_dict, data):
                 input()
 
     return True
+
+
+def export_txt(filename, function, W):
+
+    """
+
+    Exports a 1D function into a txt file.
+
+    Arguments:
+
+    - filemame : str
+
+    - function : fenics.Function()
+
+    - W : fenics.FunctionSpace(), Functionspace on which the solution will be
+
+    projected.
+
+    Returns:
+
+    - True on sucess
+
+    """
+
+    export = Function(W)
+
+    export = project(function)
+
+    busy = True
+
+    x = interpolate(Expression("x[0]", degree=1), W)
+
+    while busy is True:
+
+        try:
+
+            np.savetxt(
+                filename + ".txt", np.transpose([x.vector()[:], export.vector()[:]])
+            )
+
+            return True
+
+        except OSError as err:
+
+            print("OS error: {0}".format(err))
+
+            print(
+                "The file " + filename + ".txt might currently be busy."
+                "Please close the application then press any key."
+            )
+
+            input()
