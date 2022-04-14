@@ -285,9 +285,12 @@ def main(
     # derived_quantities_global)
 
     for i in range(len(res) - 2):
-        post_processing.export_txt(folder + "/r-{}".format(i + 1), res[i], W)
-    post_processing.export_txt("r-cb", res[-2], W)
-    post_processing.export_txt("r-ib", res[-1], W)
+        post_processing.export_txt(folder + "r-{}".format(i + 1), res[i], W)
+    post_processing.export_txt(folder + "r-cb", res[-2], W)
+    post_processing.export_txt(folder + "r-ib", res[-1], W)
+    post_processing.export_txt(
+        folder + "radius", radius(res[-1]), W
+    )  # Rayon bulle <rb> papier
     post_processing.export_txt("radius", radius(res[-1]), W)  # Rayon bulle <rb> papier
 
 
