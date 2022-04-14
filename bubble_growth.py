@@ -279,17 +279,17 @@ def main(
             dt.assign(t_final - t)
 
     post_processing.write_to_csv(
-        {"file": "r-derived_quantities.csv"}, derived_quantities_global
+        {"file": folder + "/r-derived_quantities.csv"}, derived_quantities_global
     )
     # {"file": "r-derived_quantities.csv", "folder": folder},
     # derived_quantities_global)
 
     for i in range(len(res) - 2):
         post_processing.export_txt(folder + "/r-{}".format(i + 1), res[i], W)
-    post_processing.export_txt(folder + "r-cb", res[-2], W)
-    post_processing.export_txt(folder + "r-ib", res[-1], W)
+    post_processing.export_txt(folder + "/r-cb", res[-2], W)
+    post_processing.export_txt(folder + "/r-ib", res[-1], W)
     post_processing.export_txt(
-        folder + "radius", radius(res[-1]), W
+        folder + "/radius", radius(res[-1]), W
     )  # Rayon bulle <rb> papier
 
 
