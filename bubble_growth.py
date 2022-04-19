@@ -191,6 +191,9 @@ def main(
     # reaction terms for i_b
     F += -((nb_clusters + 1) * R[-2]) * test_func[-1] * dx
     F += -(k_b_av * sols[0] * cb) * test_func[-1] * dx
+    # bursting term for i_b
+    k_burst = alpha * Expression("exp(-x[0])", degree=2)
+    F += av_i * k_burst * cb * test_func[-1] * dx
 
     du = TrialFunction(c.function_space())
     J = derivative(F, c, du)  # Define the Jacobian
@@ -312,4 +315,12 @@ if __name__ == "__main__":
     )
     flux = 1e22  # flux in He m-2 s-1
     source = distribution * flux / 0.93
-    main(mesh_parameters, dt=0.000001, t_final=50, temperature=1000, source=source)
+    for alpha in [0.1]:
+        main(
+            mesh_parameters,
+            dt=0.000001,
+            t_final=50,
+            temperature=1000,
+            source=source,
+            folder="bursting_parametric_study/k_burst_{:.2f}".format(alpha),
+        )
