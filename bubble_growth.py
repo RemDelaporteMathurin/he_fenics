@@ -192,7 +192,10 @@ def main(
     F += -((nb_clusters + 1) * R[-2]) * test_func[-1] * dx
     F += -(k_b_av * sols[0] * cb) * test_func[-1] * dx
     # bursting term for i_b
-    k_burst = alpha * Expression("exp(-x[0])", degree=2)
+    f = Constant(2e8)
+    # k_burst = alpha * Expression("exp(-x[0])", degree=2)
+    x = SpatialCoordinate(mesh)[0]
+    k_burst = alpha * f * (1 - (x - rb) / x)
     F += av_i * k_burst * cb * test_func[-1] * dx
 
     du = TrialFunction(c.function_space())
@@ -315,7 +318,7 @@ if __name__ == "__main__":
     )
     flux = 1e22  # flux in He m-2 s-1
     source = distribution * flux / 0.93
-    for alpha in [0.1]:
+    for alpha in [0, 0.05, 0.1, 0.2, 0.3, 0.4, 1, 2]:
         main(
             mesh_parameters,
             dt=0.000001,
