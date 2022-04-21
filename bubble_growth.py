@@ -212,7 +212,7 @@ def main(
     F += -((nb_clusters + 1) * R[-2]) * test_func[-1] * dx
     F += -(k_b_av * sols[0] * cb) * test_func[-1] * dx
     # bursting term for i_b
-    f = Constant(2e3)
+    f = 0 * Constant(2e3)
     # k_burst = alpha * Expression("exp(-x[0])", degree=2)
     x = SpatialCoordinate(mesh)[0]
     k_burst = alpha * f * (1 - (x - rb) / x)
@@ -268,7 +268,6 @@ def main(
 
         # Post processing
         res = list(c.split())
-        ret = 0
         for i in range(0, len(res)):
             if i == len(res) - 3:
                 name = "cb"
@@ -283,10 +282,10 @@ def main(
         immobile_clusters = sum(
             [
                 (i + 1) * res[i]
-                for i in range(immobile_cluster_threshold - 1, len(res) - 2)
+                for i in range(immobile_cluster_threshold - 1, len(res) - 3)
             ]
         )
-        retention = project(res[-1] * res[-2] + immobile_clusters)
+        retention = project(res[-1] * res[-3] + immobile_clusters)
         retention.rename("retention", "retention")
         files[-1].write(retention, t)
 
@@ -365,5 +364,5 @@ if __name__ == "__main__":
         t_final=50,
         temperature=1000,
         source=source,
-        folder="vacancies",
+        folder="vacancies/no_bursting",
     )
