@@ -34,11 +34,17 @@ def main(
     size = mesh_parameters["size"]
     mesh = meshing.mesh_and_refine(mesh_parameters)
     n = FacetNormal(mesh)
+
+    # Defining mesh markers
+    x_ib_max = 500e-9  # modify this to change the region where ib_max is computed
     vm, sm = meshing.subdomains(
         mesh,
         {
             "mesh_parameters": mesh_parameters,
-            "materials": [{"borders": [0, size], "id": 1}],
+            "materials": [
+                {"borders": [0, x_ib_max], "id": 1},
+                {"borders": [x_ib_max, size], "id": 2},
+            ],
         },
     )
     dx = Measure("dx", domain=mesh)
