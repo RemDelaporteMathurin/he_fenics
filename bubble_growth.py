@@ -22,6 +22,7 @@ def main(
         files.append(XDMFFile(folder + "/c_" + str(i + 1) + ".xdmf"))
 
     files.append(XDMFFile(folder + "/cb.xdmf"))
+    files.append(XDMFFile(folder + "/m.xdmf"))
     files.append(XDMFFile(folder + "/i.xdmf"))
     files.append(XDMFFile(folder + "/retention.xdmf"))
     for f in files:
@@ -44,7 +45,7 @@ def main(
 
     dt = Constant(dt)
     # Defining functions
-    V = VectorFunctionSpace(mesh, "P", 1, nb_clusters + 2)
+    V = VectorFunctionSpace(mesh, "P", 1, nb_clusters + 3)
     W = FunctionSpace(mesh, "P", 1)
     V_DG1 = FunctionSpace(mesh, "DG", 1)
     V_DG0 = FunctionSpace(mesh, "DG", 0)
@@ -57,7 +58,16 @@ def main(
     ini = []
     # # Uncomment the following to add initial conditions
     # ini = [{"value": 1e15*1e6*(x < 1)}]
-    ini = [{"value": nb_clusters + 1, "component": nb_clusters + 1}]
+    ini = [
+        {
+            "value": 1,
+            "component": nb_clusters + 1,
+        },  # initialise vacancies in bubbles to 1
+        {
+            "value": nb_clusters + 1,
+            "component": nb_clusters + 2,
+        },  # initialise helium content in bubbles to nb_clusters + 1
+    ]
     c_n = initialising.initialise_solutions({"initial_conditions": ini}, V)
     prev_sols = split(c_n)
     bcs = []
@@ -153,14 +163,22 @@ def main(
     F += -source_expr * test_func[0] * dx
 
     # # Extended model
-    cb = sols[-2]
-    cb_n = prev_sols[-2]
+    cb = sols[-3]
+    cb_n = prev_sols[-3]
+    av_m = sols[-2]
+    av_m_n = prev_sols[-2]
     av_i = sols[-1]
     av_i_n = prev_sols[-1]
 
-    def radius(i):
-        ## number of vacancies
-        nb_V = abs(i) / 4
+    def radius(nb_V):
+        """Returns the radius of a cluster based on the number of vacancies
+
+        Args:
+            nb_V (float, fenics.Function): the number of vacancies
+
+        Returns:
+            float or ufl.product: the radius in m
+        """
         a_0 = 0.318e-9
         pi = np.pi
         return (
@@ -169,7 +187,7 @@ def main(
             - (3 / (4 * pi) * (a_0**3) / 2) ** (1 / 3)
         )
 
-    rb = radius(av_i_n)
+    rb = radius(abs(av_m_n))
     k_b_av = 4 * pi * diff[0] * (R1 + rb)
     R[0] += -k_b_av * sols[0] * cb
 
@@ -194,11 +212,28 @@ def main(
     F += -((nb_clusters + 1) * R[-2]) * test_func[-1] * dx
     F += -(k_b_av * sols[0] * cb) * test_func[-1] * dx
     # bursting term for i_b
-    f = Constant(2e8)
+    f = Constant(2e3)
     # k_burst = alpha * Expression("exp(-x[0])", degree=2)
     x = SpatialCoordinate(mesh)[0]
     k_burst = alpha * f * (1 - (x - rb) / x)
     F += av_i * k_burst * cb * test_func[-1] * dx
+
+    # d(cb*m)/dt = cb * dm/dt + m*dcb/dt
+    F += av_m * (cb - cb_n) / dt * test_func[-2] * dx
+    F += (
+        (cb + 1e-5) * (av_m - av_m_n) / dt * test_func[-2] * dx
+    )  # cb + 1e-5 is needed cause crashes if zero
+
+    # reaction terms for m
+    def max_nb_he(nb_vacancies):
+        return nb_vacancies * 4
+
+    X = (av_i_n + 1) / max_nb_he(av_m_n) - 1
+    sigmoid = 1 / (
+        1 + exp(-50 * X)
+    )  # 50 is chosen to have a high derivative in the sigmoid
+    F += -R[-2] * test_func[-2] * dx
+    F += -sigmoid * (k_b_av * sols[0] * cb) * test_func[-2] * dx
 
     du = TrialFunction(c.function_space())
     J = derivative(F, c, du)  # Define the Jacobian
@@ -235,8 +270,10 @@ def main(
         res = list(c.split())
         ret = 0
         for i in range(0, len(res)):
-            if i == len(res) - 2:
+            if i == len(res) - 3:
                 name = "cb"
+            elif i == len(res) - 2:
+                name = "m"
             elif i == len(res) - 1:
                 name = "ib"
             else:
@@ -294,10 +331,11 @@ def main(
 
     for i in range(len(res) - 2):
         post_processing.export_txt(folder + "/r-{}".format(i + 1), res[i], W)
-    post_processing.export_txt(folder + "/r-cb", res[-2], W)
+    post_processing.export_txt(folder + "/r-cb", res[-3], W)
+    post_processing.export_txt(folder + "/r-m", res[-2], W)
     post_processing.export_txt(folder + "/r-ib", res[-1], W)
     post_processing.export_txt(
-        folder + "/radius", radius(res[-1]), W
+        folder + "/radius", radius(abs(res[-2])), W
     )  # Rayon bulle <rb> papier
 
 
@@ -320,12 +358,12 @@ if __name__ == "__main__":
     )
     flux = 1e22  # flux in He m-2 s-1
     source = distribution * flux / 0.93
-    for alpha in [0, 0.05, 0.1, 0.2, 0.3, 0.4, 1, 2]:
-        main(
-            mesh_parameters,
-            dt=0.000001,
-            t_final=50,
-            temperature=1000,
-            source=source,
-            folder="bursting_parametric_study/k_burst_{:.2f}".format(alpha),
-        )
+    alpha = 1
+    main(
+        mesh_parameters,
+        dt=0.0001,
+        t_final=50,
+        temperature=1000,
+        source=source,
+        folder="vacancies",
+    )
