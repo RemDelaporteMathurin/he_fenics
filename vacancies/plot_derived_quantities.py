@@ -54,11 +54,20 @@ plt.tight_layout()
 plt.savefig("he_inventory.svg")
 plt.show()
 
-# max ib
+# max ib and m
+fig, axs = plt.subplots(2, 1, sharex=True)
+plt.sca(axs[0])
 plot_derived_quantity("max_ibHe")
 # plt.ylim(bottom=1e18)
 matplotx.line_labels()
+plt.xlabel("")
 plt.ylabel(r"$\max (\langle i_b \rangle )$")
+
+plt.sca(axs[1])
+plot_derived_quantity("max_mV")
+plt.ylabel(r"$\max (\langle m \rangle )$")
+matplotx.line_labels()
+
 plt.tight_layout()
 plt.savefig("max_ibHe.svg")
 plt.show()
