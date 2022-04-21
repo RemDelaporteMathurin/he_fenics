@@ -158,14 +158,14 @@ def main(
     av_i = sols[-1]
     av_i_n = prev_sols[-1]
 
-    def radius(i):    
-        ## nulber of vacancies 
+    def radius(i):
+        ## number of vacancies
         nb_V = abs(i) / 4
         a_0 = 0.318e-9
         pi = np.pi
         return (
             ((3**0.5) / 4 * a_0)
-            + (3 / (4 * pi) * (a_0**3) / 2 * nb_V ) ** (1 / 3)   ###
+            + (3 / (4 * pi) * (a_0**3) / 2 * nb_V) ** (1 / 3)
             - (3 / (4 * pi) * (a_0**3) / 2) ** (1 / 3)
         )
 
