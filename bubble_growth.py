@@ -218,7 +218,7 @@ def main(
     F += -((nb_clusters + 1) * R[-2]) * test_func[-1] * dx
     F += -(k_b_av * sols[0] * cb) * test_func[-1] * dx
     # bursting term for i_b
-    f = 0 * Constant(2e3)
+    f = Constant(2e3)
     # k_burst = alpha * Expression("exp(-x[0])", degree=2)
     x = SpatialCoordinate(mesh)[0]
     k_burst = alpha * f * (1 - (x - rb) / x)
@@ -254,6 +254,7 @@ def main(
             "inventory(He/m2)",
             "flux_surface_left(He/m2/s)",
             "max_ib(He)",
+            "max_m(V)",
             "x_max_ib(m)",
             "mean_ib(He)",
             "total_bubbles",
@@ -300,6 +301,7 @@ def main(
             if i < immobile_cluster_threshold:
                 flux_left += assemble(diff[i] * dot(grad(res[i]), n) * ds)
         ib_max = post_processing.calculate_maximum_volume(res[-1], vm, 1)
+        m_max = post_processing.calculate_maximum_volume(res[-2], vm, 1)
         x_max_ib = find_maximum_loc(res[-1], ib_max, dof_coord)
         immobile_clusters = [
             res[i] for i in range(immobile_cluster_threshold - 1, len(res) - 1)
@@ -315,6 +317,7 @@ def main(
                 assemble(retention * dx),
                 flux_left,
                 ib_max,
+                m_max,
                 x_max_ib,
                 mean_ib,
                 total_bubbles,
@@ -370,5 +373,5 @@ if __name__ == "__main__":
         t_final=50,
         temperature=1000,
         source=source,
-        folder="vacancies/no_bursting",
+        folder="vacancies",
     )
