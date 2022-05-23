@@ -5,6 +5,7 @@ from src import meshing, initialising, post_processing, solving
 
 
 k_B = 8.617e-5  # eV/K
+R_g = 8.314  # J/mol/K
 
 
 def find_maximum_loc(u, maximum, dof_coord):
@@ -14,7 +15,15 @@ def find_maximum_loc(u, maximum, dof_coord):
 
 
 def main(
-    mesh_parameters, temperature, source, dt, t_final, nb_clusters=6, folder="temp"
+    mesh_parameters,
+    temperature,
+    source,
+    dt,
+    t_final,
+    nb_clusters=6,
+    folder="./",
+    soret=False,
+    bursting=False,
 ):
     # Files
     files = []
@@ -24,6 +33,7 @@ def main(
     files.append(XDMFFile(folder + "/cb.xdmf"))
     files.append(XDMFFile(folder + "/m.xdmf"))
     files.append(XDMFFile(folder + "/i.xdmf"))
+    files.append(XDMFFile(folder + "/T.xdmf"))
     files.append(XDMFFile(folder + "/retention.xdmf"))
     for f in files:
         f.parameters["flush_output"] = True
@@ -34,17 +44,11 @@ def main(
     size = mesh_parameters["size"]
     mesh = meshing.mesh_and_refine(mesh_parameters)
     n = FacetNormal(mesh)
-
-    # Defining mesh markers
-    x_ib_max = 500e-9  # modify this to change the region where ib_max is computed
     vm, sm = meshing.subdomains(
         mesh,
         {
             "mesh_parameters": mesh_parameters,
-            "materials": [
-                {"borders": [0, x_ib_max], "id": 1},
-                {"borders": [x_ib_max, size], "id": 2},
-            ],
+            "materials": [{"borders": [0, size], "id": 1}],
         },
     )
     dx = Measure("dx", domain=mesh)
@@ -85,15 +89,22 @@ def main(
     if isinstance(temperature, (int, float)):
         T = Constant(temperature)
     else:
-        T = Expression(sp.printing.ccode(temperature), t=0, degree=2)
+        ccode = sp.printing.ccode(temperature)
+        T = Expression(ccode, t=0, degree=2)
+        if "t" not in ccode:
+            T = interpolate(T, W)
+
     immobile_cluster_threshold = 7
     diff = [0 for i in range(nb_clusters + 1)]
-    diff[0] = 2.9e-8 * exp(-0.13 / k_B / T)
+    diff[0] = 2.9e-8*exp(-0.13/k_B/T)
     diff[1] = 3.2e-8 * exp(-0.2 / k_B / T)
     diff[2] = 2.3e-8 * exp(-0.25 / k_B / T)
     diff[3] = 1.7e-8 * exp(-0.2 / k_B / T)
     diff[4] = 5.0e-9 * exp(-0.12 / k_B / T)
     diff[5] = 1.0e-9 * exp(-0.3 / k_B / T)
+
+    free_enthalpy = [1 for _ in range(nb_clusters + 1)]
+    entropy = [1 for _ in range(nb_clusters + 1)]
 
     R1 = 3e-10
     R = []
@@ -184,12 +195,12 @@ def main(
 
         Returns:
             float or ufl.product: the radius in m
-        """
+        """    
         a_0 = 0.318e-9
         pi = np.pi
         return (
             ((3**0.5) / 4 * a_0)
-            + (3 / (4 * pi) * (a_0**3) / 2 * nb_V) ** (1 / 3)
+            + (3 / (4 * pi) * (a_0**3) / 2 * nb_V ) ** (1 / 3)   ###
             - (3 / (4 * pi) * (a_0**3) / 2) ** (1 / 3)
         )
 
@@ -202,6 +213,18 @@ def main(
         F += (sols[i] - prev_sols[i]) / dt * test_func[i] * dx + diff[i] * dot(
             grad(sols[i]), grad(test_func[i])
         ) * dx
+        # soret
+        if isinstance(T, Function) and soret:
+            print("Adding soret effect")
+            Q = free_enthalpy[i] * T + entropy[i]
+            F += (
+                dot(
+                    #diff[i] * Q * sols[i] / (R_g * T**2) * grad(T),
+                    diff[i] * -0.0065 * sols[i] * grad(T),
+                    grad(test_func[i]),
+                )
+                * dx
+            )
         F += (-R[i] - D[i]) * test_func[i] * dx
 
     # doesn't work: d(cb*ib)/dt
@@ -211,23 +234,25 @@ def main(
     # d(cb*ib)/dt = cb*di/dt + i*dcb/dt
     F += av_i * (cb - cb_n) / dt * test_func[-1] * dx
     F += (
-        (cb + 1e-5) * (av_i - av_i_n) / dt * test_func[-1] * dx
+        (cb + 1e-6) * (av_i - av_i_n) / dt * test_func[-1] * dx
     )  # cb + 1e-5 is needed cause crashes if zero
 
     # reaction terms for i_b
     F += -((nb_clusters + 1) * R[-2]) * test_func[-1] * dx
     F += -(k_b_av * sols[0] * cb) * test_func[-1] * dx
+
     # bursting term for i_b
     f = Constant(2e3)
     # k_burst = alpha * Expression("exp(-x[0])", degree=2)
     x = SpatialCoordinate(mesh)[0]
-    k_burst = alpha * f * (1 - (x - rb) / x)
-    F += av_i * k_burst * cb * test_func[-1] * dx
+    k_burst =  f * (1 - (x - rb) / x)
+    if bursting:
+        F += av_i * k_burst * cb * test_func[-1] * dx
 
-    # d(cb*m)/dt = cb * dm/dt + m*dcb/dt
+     # d(cb*m)/dt = cb * dm/dt + m*dcb/dt
     F += av_m * (cb - cb_n) / dt * test_func[-2] * dx
     F += (
-        (cb + 1e-5) * (av_m - av_m_n) / dt * test_func[-2] * dx
+        (cb + 1e-6) * (av_m - av_m_n) / dt * test_func[-2] * dx
     )  # cb + 1e-5 is needed cause crashes if zero
 
     # reaction terms for m
@@ -271,7 +296,7 @@ def main(
         problem = NonlinearVariationalProblem(F, c, bcs, J)
         solver = NonlinearVariationalSolver(problem)
         solver.parameters["newton_solver"]["absolute_tolerance"] = 1e10
-        solver.parameters["newton_solver"]["relative_tolerance"] = 1e-10
+        solver.parameters["newton_solver"]["relative_tolerance"] = 1e-11
         solver.parameters["newton_solver"]["maximum_iterations"] = 30
         nb_it, converged = solver.solve()
 
@@ -287,7 +312,7 @@ def main(
             else:
                 name = str(i + 1)
             res[i].rename(name, name)
-            files[i].write(res[i], t)
+            #files[i].write(res[i], t)
         immobile_clusters = sum(
             [
                 (i + 1) * res[i]
@@ -296,10 +321,9 @@ def main(
         )
         retention = project(res[-1] * res[-3] + immobile_clusters)
         retention.rename("retention", "retention")
-        files[-1].write(retention, t)
-
         total_vacancies = project(res[-2] * res[-3])
-
+        #files[-1].write(retention, t)
+        #files[-2].write(T, t)
         flux_left = 0
         for i in range(0, nb_clusters):
             if i < immobile_cluster_threshold:
@@ -308,15 +332,13 @@ def main(
         m_max = post_processing.calculate_maximum_volume(res[-2], vm, 1)
         x_max_ib = find_maximum_loc(res[-1], ib_max, dof_coord)
         immobile_clusters = [
-            res[i] for i in range(immobile_cluster_threshold - 1, len(res) - 1)
+            res[i] for i in range(immobile_cluster_threshold - 1, len(res) - 2)
         ]
         total_bubbles = assemble((sum(immobile_clusters)) * dx)
         if total_bubbles > 0:
             mean_ib = assemble(retention * dx) / total_bubbles
-            mean_m = assemble(total_vacancies * dx) / total_bubbles
-            mean_ratio_he_v = (
-                mean_ib / mean_m
-            )  # TODO check that this is the real expression
+            mean_m = assemble(total_vacancies* dx) / total_bubbles
+            mean_ratio_he_v = mean_ib/mean_m  # TODO check that this is the real expression
         else:
             mean_ib = nb_clusters + 1
             mean_m = 1
@@ -343,46 +365,57 @@ def main(
             dt.assign(t_final - t)
 
     post_processing.write_to_csv(
-        {"file": folder + "/r-derived_quantities.csv"}, derived_quantities_global
+        {"file": folder + "r-derived_quantities.csv"}, derived_quantities_global
     )
     # {"file": "r-derived_quantities.csv", "folder": folder},
     # derived_quantities_global)
 
     for i in range(len(res) - 2):
-        post_processing.export_txt(folder + "/r-{}".format(i + 1), res[i], W)
-    post_processing.export_txt(folder + "/r-cb", res[-3], W)
-    post_processing.export_txt(folder + "/r-m", res[-2], W)
-    post_processing.export_txt(folder + "/r-ib", res[-1], W)
-    post_processing.export_txt(
-        folder + "/radius", radius(abs(res[-2])), W
-    )  # Rayon bulle <rb> papier
+        post_processing.export_txt(folder + "r-{}".format(i + 1), res[i], W)
+        # post_processing.export_txt(folder + "/r-{}".format(i+1), res[i], W)
+    post_processing.export_txt(folder + "r-cb", res[-3], W)
+    post_processing.export_txt(folder + "r-m", res[-2], W)
+    post_processing.export_txt(folder + "r-ib", res[-1], W)
+    if not isinstance(T, Function):
+        T = project(T, W)
+    post_processing.export_txt(folder + "r-T", T, W)
+    post_processing.export_txt(folder + "radius", radius(abs(res[-2])), W)  # Rayon bulle <rb> papier
 
 
 if __name__ == "__main__":
     x = sp.Symbol("x[0]")
-    size = 100e-6
+    t = sp.Symbol("t")
+    size = 30e-9
 
     mesh_parameters = {
         "size": size,
-        "initial_number_of_cells": 900,
-        "refinements": [
-            {"x": 2e-6, "cells": 600},
-            {"x": 50 - 9, "cells": 50},
-        ],
+        "initial_number_of_cells":900,
+        #"refinements": [
+        #    {"x": 2e-6, "cells": 600},
+        #    {"x": 50e-9, "cells": 100},
+        #],
     }
-    center = 1.5e-9
-    width = 1e-9
-    distribution = (
-        1 / (width * (2 * 3.14) ** 0.5) * sp.exp(-0.5 * ((x - center) / width) ** 2)
-    )
+
+    #   TS Xolotl W100
+    distribution = (x <= 10e-9) *  1e9/16.39 *  (7.00876507 + 0.6052078 * x*1e9 - 3.01711048 *(x*1e9)**2 + 1.36595786 * (x*1e9)**3 - 0.295595 * (x*1e9)**4 + 0.03597462 * (x*1e9)**5 - 0.0025142 * (x*1e9)**6 + 0.0000942235 * (x*1e9)**7 - 0.0000014679 * (x*1e9)**8)
     flux = 1e22  # flux in He m-2 s-1
-    source = distribution * flux / 0.93
-    alpha = 1
+
+
+    # center = 1.5e-9
+    # width = 1e-9
+    # distribution = 1/(width*(2*3.14)**0.5) * sp.exp(-0.5*((x-center)/width)**2)
+    # print('Integration of distribution:', float(sp.integrate(distribution, (x, 0.01, 30e-9))))
+    # distribution = distribution/sp.integrate(distribution, (x, 0, 30e-9))
+
+    source = distribution*flux
+
     main(
         mesh_parameters,
-        dt=0.0001,
-        t_final=50,
-        temperature=1000,
+        dt=1.0,
+        t_final=5011,
+        temperature=500,
+        folder="./",
         source=source,
-        folder="vacancies",
+        soret=False,
+        bursting=True,
     )

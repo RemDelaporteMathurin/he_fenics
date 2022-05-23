@@ -24,7 +24,7 @@ def plot_derived_quantity(
     # no bursting
 
     data = np.genfromtxt(
-        "no_bursting/r-derived_quantities.csv".format(0),
+        "no_bursting/r-derived_quantities.csv",
         delimiter=",",
         names=True,
     )
@@ -80,4 +80,30 @@ matplotx.line_labels()
 plt.ylabel(r"Bubbles inventory (bubbles/ m $^{-2}$ )")
 plt.tight_layout()
 plt.savefig("total_bubbles.svg")
+plt.show()
+
+# average ib m
+fig, axs = plt.subplots(3, 1, sharex=True)
+
+plt.sca(axs[0])
+plot_derived_quantity("mean_ibHe")
+matplotx.line_labels()
+plt.ylabel(r"mean($\langle i_b \rangle$) (He)")
+
+plt.sca(axs[1])
+plot_derived_quantity("mean_mV")
+plt.ylabel(r"mean($\langle m \rangle$) (V)")
+
+matplotx.line_labels()
+
+plt.sca(axs[2])
+plot_derived_quantity("mean_ratio_HeV")
+plt.yscale("linear")
+plt.ylim(bottom=0)
+plt.ylabel(r"mean($\langle i_b \rangle$)/mean($\langle m \rangle$) \n (He/V)")
+matplotx.line_labels()
+
+plt.xscale("log")
+plt.tight_layout()
+plt.savefig("mean_ib_m.svg")
 plt.show()
