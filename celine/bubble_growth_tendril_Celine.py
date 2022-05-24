@@ -358,7 +358,7 @@ def main(
         )
 
         # update
-        solving.adaptive_stepsize(nb_it, converged, dt, 1e-8, 1.05, t)
+        solving.adaptive_stepsize(nb_it, converged, dt, 1e-8, 1.02, t)
         c_n.assign(c)
 
         if t + float(dt) > t_final:
@@ -385,27 +385,26 @@ def main(
 if __name__ == "__main__":
     x = sp.Symbol("x[0]")
     t = sp.Symbol("t")
-    size = 1e-6
+    size = 0.5e-6
 
     mesh_parameters = {
         "size": size,
         "initial_number_of_cells":900,
         "refinements": [
-            {"x": 2e-6, "cells": 600},
-            {"x": 50e-9, "cells": 100},
+            {"x": 100e-9, "cells": 300},
         ],
     }
 
     #   TS Xolotl W100
     #distribution = (x <= 10e-9) *  1e9/16.39 *  (7.00876507 + 0.6052078 * x*1e9 - 3.01711048 *(x*1e9)**2 + 1.36595786 * (x*1e9)**3 - 0.295595 * (x*1e9)**4 + 0.03597462 * (x*1e9)**5 - 0.0025142 * (x*1e9)**6 + 0.0000942235 * (x*1e9)**7 - 0.0000014679 * (x*1e9)**8)
-    flux = 2.3e23  # flux in He m-2 s-1
+    flux = 2.3e22  # flux in He m-2 s-1
 
 
     center = 1.4e-9
     width = 0.8e-9
     distribution = 1/(width*(2*3.14)**0.5) * sp.exp(-0.5*((x-center)/width)**2)
-    print('Integration of distribution:', float(sp.integrate(distribution, (x, 0.01, 30e-9))))
-    distribution = distribution/sp.integrate(distribution, (x, 0, 30e-9))
+    print('Integration of distribution:', float(sp.integrate(distribution, (x, 0.01, 100e-9))))
+    distribution = distribution/sp.integrate(distribution, (x, 0, 100e-9))
 
     source = distribution*flux
 
