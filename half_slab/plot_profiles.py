@@ -18,6 +18,7 @@ for ax, t in zip(axbottom, times):
 axbottom[0].set_ylabel("$C_b$ (m$^{-3}$)")
 
 for ax in axtop:
+    ax.set_ylim(bottom=0)
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
 for ax in axbottom:
