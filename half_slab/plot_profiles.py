@@ -1,21 +1,28 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from labellines import *
+from labellines import labelLines
 
-fig, (axtop, axbottom) = plt.subplots(2, 3, sharex=True, sharey="row")
+fig, (axtop, axbottom) = plt.subplots(2, 3, sharex=True, sharey=True)
 folder = "profiles"
 times = [0.1, 1, 10]
 for ax, t in zip(axtop, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
-    ax.plot(data["arc_length"], data["1"])
+    ax.plot(data["arc_length"]*1e9, data["1"])
     ax.set_title("{}s".format(t))
 axtop[0].set_ylabel("$C_{\mathrm{He}_1}$ (m$^{-3}$)")
 
 for ax, t in zip(axbottom, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
-    ax.plot(data["arc_length"], data["cb"])
-    ax.set_xlabel("x (m)")
+    ax.plot(data["arc_length"]*1e9, data["cb"])
+    ax.set_xlabel("x (nm)")
 axbottom[0].set_ylabel("$C_b$ (m$^{-3}$)")
+
+for ax in axtop:
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
+for ax in axbottom:
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
 plt.show()
 
 fig, axs = plt.subplots(1, 2, sharex=True, sharey="row")
@@ -40,4 +47,8 @@ axs[1].set_xlabel("x (nm)")
 
 axs[0].text(1e-7*1e9, 2.5e21, "$\mathrm{He}_1$")
 axs[1].text(2e-7*1e9, 2.5e21, "Bubbles ($c_b$)")
+
+for ax in axs:
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
 plt.show()
