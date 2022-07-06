@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from labellines import labelLines
 
-fig, (axtop, axbottom) = plt.subplots(2, 3, sharex=True, sharey=True)
+fig, (axtop, axmiddle, axbottom) = plt.subplots(3, 3, sharex=True, sharey="row")
 folder = "profiles"
 times = [0.1, 1, 10]
 for ax, t in zip(axtop, times):
@@ -11,17 +11,30 @@ for ax, t in zip(axtop, times):
     ax.set_title("{}s".format(t))
 axtop[0].set_ylabel("$C_{\mathrm{He}_1}$ (m$^{-3}$)")
 
-for ax, t in zip(axbottom, times):
+for ax, t in zip(axmiddle, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
     ax.plot(data["arc_length"]*1e9, data["cb"])
+axmiddle[0].set_ylabel("$C_b$ (m$^{-3}$)")
+
+for ax, t in zip(axbottom, times):
+    data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
+    data_ib = np.genfromtxt("i/t={}s.csv".format(t), delimiter=",", names=True)
+    ax.plot(data["arc_length"]*1e9, data["cb"]*data_ib["ib"])
     ax.set_xlabel("x (nm)")
-axbottom[0].set_ylabel("$C_b$ (m$^{-3}$)")
+axbottom[0].set_ylabel("Retention (m$^{-3}$)")
+
+
 
 for ax in axtop:
     ax.set_ylim(bottom=0)
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
+for ax in axmiddle:
+    ax.set_ylim(bottom=0)
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
 for ax in axbottom:
+    ax.set_ylim(bottom=0)
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
 plt.show()
