@@ -34,7 +34,8 @@ for ax in axmiddle:
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
 for ax in axbottom:
-    ax.set_ylim(bottom=0)
+    # ax.set_ylim(bottom=0)
+    ax.set_yscale("log")
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
 plt.show()
