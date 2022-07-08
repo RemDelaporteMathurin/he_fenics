@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sympy as sp
+from matplotlib.colors import LogNorm
+from matplotlib import cm
 from labellines import labelLines
 
 def radius(i):
@@ -13,10 +15,12 @@ def radius(i):
 
 folder = "i"
 times = [10, 1, 0.1]
+cmap = cm.Blues
+norm = LogNorm(1e-3, 1e1)
 
 for t in times:
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
-    plt.plot(data["arc_length"]*1e9, radius(data["ib"])*1e9, color="black", label="{} s".format(t))
+    plt.plot(data["arc_length"]*1e9, radius(data["ib"])*1e9, color=cmap(norm(t)), label="{} s".format(t))
 
 plt.xlim(5e-10*1e9, 7e-7*1e9)
 x = np.logspace(np.log10(3e-10), np.log10(1e-7))

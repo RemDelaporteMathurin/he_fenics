@@ -1,25 +1,29 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from labellines import labelLines
+from matplotlib.colors import LogNorm
+from matplotlib import cm
 
 fig, (axtop, axmiddle, axbottom) = plt.subplots(3, 3, sharex=True, sharey="row")
 folder = "profiles"
 times = [0.1, 1, 10]
+cmap = cm.Blues
+norm = LogNorm(1e-3, 1e1)
 for ax, t in zip(axtop, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
-    ax.plot(data["arc_length"]*1e9, data["1"])
-    ax.set_title("{}s".format(t))
+    ax.plot(data["arc_length"]*1e9, data["1"], color=cmap(norm(t)))
+    ax.set_title("{}s".format(t), color=cmap(norm(t)))
 axtop[0].set_ylabel("$C_{\mathrm{He}_1}$ (m$^{-3}$)")
 
 for ax, t in zip(axmiddle, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
-    ax.plot(data["arc_length"]*1e9, data["cb"])
+    ax.plot(data["arc_length"]*1e9, data["cb"], color=cmap(norm(t)))
 axmiddle[0].set_ylabel("$C_b$ (m$^{-3}$)")
 
 for ax, t in zip(axbottom, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
     data_ib = np.genfromtxt("i/t={}s.csv".format(t), delimiter=",", names=True)
-    ax.plot(data["arc_length"]*1e9, data["cb"]*data_ib["ib"])
+    ax.plot(data["arc_length"]*1e9, data["cb"]*data_ib["ib"], color=cmap(norm(t)))
     ax.set_xlabel("x (nm)")
 axbottom[0].set_ylabel("Retention (m$^{-3}$)")
 

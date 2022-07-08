@@ -1,11 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
-try:
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif', size=12)
-except:
-    pass
+from matplotlib.colors import LogNorm
+from matplotlib import cm
+import matplotx
+# try:
+#     plt.rc('text', usetex=True)
+#     plt.rc('font', family='serif', size=12)
+# except:
+#     pass
 
 
 R1 = 3e-10
@@ -30,13 +32,13 @@ def radius(i):
 
 
 times = [10, 1, 0.1]
-styles = ["solid", "--", "-."]
-
+cmap = cm.Blues
+norm = LogNorm(1e-3, 1e1)
 fig, axs = plt.subplots(2, 1, sharex=True)#, figsize=(5.4, 3))
 
 # average content
 plt.sca(axs[0])
-for t, style in zip(times, styles):
+for t in times:
     data_concentration = np.genfromtxt("profiles/t={}s.csv".format(t), delimiter=",", names=True)
     data_ib = np.genfromtxt("i/t={}s.csv".format(t), delimiter=",", names=True)
     average_rad = (
@@ -45,16 +47,17 @@ for t, style in zip(times, styles):
         )[1:]
     sum_of_c_i = (data_concentration["cb"] + sum([data_concentration[str(i)] for i in range(1, 7)]))[1:]
     average_rad /= sum_of_c_i
-    plt.plot(data_concentration["arc_length"][1:]*1e9, average_rad, color="black", linestyle=style, label="{} s".format(t))
+    plt.plot(data_concentration["arc_length"][1:]*1e9, average_rad, color=cmap(norm(t)), label="{} s".format(t))
 plt.yscale("log")
 plt.ylabel("Average helium \n " + r"content $\langle i \rangle$ (He)")
+matplotx.line_labels()
 # plt.xlabel("x (m)")
-plt.legend()
+# plt.legend()
 # plt.show()
 
 # average radius
 plt.sca(axs[1])
-for t, style in zip(times, styles):
+for t in times:
     data_concentration = np.genfromtxt("profiles/t={}s.csv".format(t), delimiter=",", names=True)
     data_ib = np.genfromtxt("i/t={}s.csv".format(t), delimiter=",", names=True)
     average_rad = (
@@ -63,24 +66,14 @@ for t, style in zip(times, styles):
         )[1:]
     sum_of_c_i = (data_concentration["cb"] + sum([data_concentration[str(i)] for i in range(1, 7)]))[1:]
     average_rad /= sum_of_c_i
-    plt.plot(data_concentration["arc_length"][1:]*1e9, average_rad*1e9, color="black", linestyle=style)
+    plt.plot(data_concentration["arc_length"][1:]*1e9, average_rad*1e9, color=cmap(norm(t)), label="{} s".format(t))
 # plt.yscale("log")
 plt.ylabel("Average radius \n " + r"$\langle r \rangle$ (nm)")
 plt.xlabel("x (nm)")
 plt.tight_layout()
-plt.show()
+matplotx.line_labels()
 
-# average radius bubbles
-for t, style in zip(times, styles):
-    data_concentration = np.genfromtxt("profiles/t={}s.csv".format(t), delimiter=",", names=True)
-    data_ib = np.genfromtxt("i/t={}s.csv".format(t), delimiter=",", names=True)
-    plt.plot(data_concentration["arc_length"][1:]*1e9, radius(data_ib["ib"][1:])*1e9, color="black", linestyle=style, label="{} s".format(t))
-x = np.linspace(0.5, 36)
-plt.fill_between(x, x, np.zeros(x.shape) + 36, color='grey', alpha=0.3)
-plt.text(1, 12, r"$\langle r_b \rangle > x$" + "\n 'bursting zone'", fontsize=13)
-plt.yscale("log")
-plt.xscale("log")
-plt.ylabel(r"$\langle r_b \rangle$ (nm)")
-plt.xlabel("x (nm)")
-plt.legend()
+for ax in axs:
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
 plt.show()
