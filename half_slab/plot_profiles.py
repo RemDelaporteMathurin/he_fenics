@@ -4,15 +4,19 @@ from labellines import labelLines
 from matplotlib.colors import LogNorm
 from matplotlib import cm
 
-fig, (axtop, axmiddle, axbottom) = plt.subplots(3, 3, sharex=True, sharey="row")
+fig, (axtop, axmiddle, axbottom) = plt.subplots(3, 4, sharex=True, sharey="row")
 folder = "profiles"
-times = [0.1, 1, 10]
+times = [0.0001, 0.1, 1, 10]
 cmap = cm.Blues
-norm = LogNorm(1e-3, 1e1)
+norm = LogNorm(1e-8, 1e1)
 for ax, t in zip(axtop, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
     ax.plot(data["arc_length"]*1e9, data["1"], color=cmap(norm(t)))
-    ax.set_title("{}s".format(t), color=cmap(norm(t)))
+    if t == 0.0001:
+        title = "  $10^{-4}$ s"
+    else:
+        title = "{} s".format(t)
+    ax.set_title(title, color=cmap(norm(t)))
 axtop[0].set_ylabel("$C_{\mathrm{He}_1}$ (m$^{-3}$)")
 
 for ax, t in zip(axmiddle, times):
@@ -22,8 +26,15 @@ axmiddle[0].set_ylabel("$C_b$ (m$^{-3}$)")
 
 for ax, t in zip(axbottom, times):
     data = np.genfromtxt(folder + "/t={}s.csv".format(t), delimiter=",", names=True)
-    data_ib = np.genfromtxt("i/t={}s.csv".format(t), delimiter=",", names=True)
-    ax.plot(data["arc_length"]*1e9, data["cb"]*data_ib["ib"], color=cmap(norm(t)))
+    x = data["arc_length"]
+    cb = data["cb"]
+
+    if t == 0.0001:
+        ib = np.zeros(x.shape)
+    else:
+        data_ib = np.genfromtxt("i/t={}s.csv".format(t), delimiter=",", names=True)
+        ib = data_ib["ib"]
+    ax.plot(x*1e9, cb*ib, color=cmap(norm(t)))
     ax.set_xlabel("x (nm)")
 axbottom[0].set_ylabel("Retention (m$^{-3}$)")
 
