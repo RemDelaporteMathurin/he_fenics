@@ -14,7 +14,14 @@ def find_maximum_loc(u, maximum, dof_coord):
 
 
 def main(
-    mesh_parameters, temperature, source, dt, t_final, nb_clusters=6, folder="temp"
+    mesh_parameters,
+    temperature,
+    source,
+    dt,
+    t_final,
+    nb_clusters=6,
+    folder="temp",
+    k_burst_0=2e3,
 ):
     # Files
     files = []
@@ -218,10 +225,10 @@ def main(
     F += -((nb_clusters + 1) * R[-2]) * test_func[-1] * dx
     F += -(k_b_av * sols[0] * cb) * test_func[-1] * dx
     # bursting term for i_b
-    f = Constant(2e3)
-    # k_burst = alpha * Expression("exp(-x[0])", degree=2)
+    k_burst_0 = Constant(k_burst_0)
+    # k_burst = k_burst_0 * Expression("exp(-x[0])", degree=2)
     x = SpatialCoordinate(mesh)[0]
-    k_burst = alpha * f * (1 - (x - rb) / x)
+    k_burst = k_burst_0 * (1 - (x - rb) / x)
     F += av_i * k_burst * cb * test_func[-1] * dx
 
     # d(cb*m)/dt = cb * dm/dt + m*dcb/dt
@@ -377,7 +384,6 @@ if __name__ == "__main__":
     )
     flux = 1e22  # flux in He m-2 s-1
     source = distribution * flux / 0.93
-    alpha = 1
     main(
         mesh_parameters,
         dt=0.0001,
