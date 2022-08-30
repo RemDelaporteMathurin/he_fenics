@@ -8,7 +8,7 @@ def plot_derived_quantity(
 ):
 
     data = np.genfromtxt(
-        "r-derived_quantities.csv",
+        "k_burst_0=2.0e+03/r-derived_quantities.csv",
         delimiter=",",
         names=True,
     )
@@ -24,7 +24,7 @@ def plot_derived_quantity(
     # no bursting
 
     data = np.genfromtxt(
-        "no_bursting/r-derived_quantities.csv",
+        "k_burst_0=0.0e+00/r-derived_quantities.csv",
         delimiter=",",
         names=True,
     )
