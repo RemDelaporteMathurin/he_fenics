@@ -1,5 +1,7 @@
 from bubble_growth import main
 import sympy as sp
+import numpy as np
+
 
 x = sp.Symbol("x[0]")
 size = 100e-6
@@ -24,25 +26,15 @@ dt = 0.0001
 t_final = 50
 temperature = 1000
 
-# run with bursting
-main(
-    mesh_parameters,
-    dt=dt,
-    t_final=t_final,
-    temperature=temperature,
-    source=source,
-    folder="vacancies/bursting",
-    k_burst_0=2e3,
-)
+if __name__ == "__main__":
+    for k_burst_0 in np.linspace(0, 2e3, num=4):
 
-
-# run without bursting
-main(
-    mesh_parameters,
-    dt=dt,
-    t_final=t_final,
-    temperature=temperature,
-    source=source,
-    folder="vacancies/no_bursting",
-    k_burst_0=0,
-)
+        main(
+            mesh_parameters,
+            dt=dt,
+            t_final=t_final,
+            temperature=temperature,
+            source=source,
+            folder="vacancies/k_burst_0={:.1e}".format(k_burst_0),
+            k_burst_0=k_burst_0,
+        )
